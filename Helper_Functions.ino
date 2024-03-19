@@ -1,52 +1,71 @@
+
+
 void initHardware(){
 	// enable eeprom wait in avr/eeprom.h functions
 	SPMCSR &= ~SELFPRGEN;
 
 	loadPenPosFromEE();
-
+// SM,10000,1000,1000
+#ifdef BOARD_ULN2003
+	pinMode(engraverPin, OUTPUT);
+	rotMotor.setMaxSpeed(800.0);
+	rotMotor.setAcceleration(300.0);
+	penMotor.setMaxSpeed(800.0);
+	penMotor.setAcceleration(300.0);
+#else
 	pinMode(enableRotMotor, OUTPUT);
 	pinMode(enablePenMotor, OUTPUT);
-
+	pinMode(engraverPin, OUTPUT);
 	rotMotor.setMaxSpeed(2000.0);
 	rotMotor.setAcceleration(10000.0);
 	penMotor.setMaxSpeed(2000.0);
 	penMotor.setAcceleration(10000.0);
+#endif
 	motorsOff();
 	penServo.attach(servoPin);
 	penServo.write(penState);
 }
 
-inline void loadPenPosFromEE() {
+void loadPenPosFromEE() {
 	penUpPos = eeprom_read_word(penUpPosEEAddress);
 	penDownPos = eeprom_read_word(penDownPosEEAddress);
+	servoRateUp = eeprom_read_word(penUpRateEEAddress);
+	servoRateDown = eeprom_read_word(penDownRateEEAddress);
 	penState = penUpPos;
 }
 
-inline void storePenUpPosInEE() {
+void storePenUpPosInEE() {
 	eeprom_update_word(penUpPosEEAddress, penUpPos);
 }
 
-inline void storePenDownPosInEE() {
+void storePenDownPosInEE() {
 	eeprom_update_word(penDownPosEEAddress, penDownPos);
 }
 
-inline void sendAck(){
+void sendAck(){
 	Serial.print("OK\r\n");
 }
 
-inline void sendError(){
-	Serial.print("unknown CMD\r\n");
+void sendError(){
+	Serial.print("!8 Err: Unknown command\r\n");
 }
 
 void motorsOff() {
+#ifdef BOARD_ULN2003
+	for (byte i= 2; i < 10; i++)
+		digitalWrite(i, LOW);
+#else
 	digitalWrite(enableRotMotor, HIGH);
 	digitalWrite(enablePenMotor, HIGH);
+#endif
 	motorsEnabled = 0;
 }
 
 void motorsOn() {
+#ifndef BOARD_ULN2003
 	digitalWrite(enableRotMotor, LOW) ;
 	digitalWrite(enablePenMotor, LOW) ;
+#endif
 	motorsEnabled = 1;
 }
 
@@ -86,6 +105,35 @@ void prepareMove(uint16_t duration, int penStepsEBB, int rotStepsEBB) {
 	}
 	if( (1 == rotStepCorrection) && (1 == penStepCorrection) ){ // if coordinatessystems are identical
 		//set Coordinates and Speed
+
+#ifdef BOARD_ULN2003
+        // map 3200x800 eggbot corrdinates to our 28BYJ-48's penStepsPerRev and rotStepsUseable
+
+/*
+ * original
+        rotStepsEBB = map(rotStepsEBB, 0, 3200, 0, penStepsPerRev);
+        penStepsEBB = map(penStepsEBB, 0, 800, 0, rotStepsUseable);
+*/
+
+    long rotStepsX16 = (long)(rotStepsEBB * 16L);
+    long penStepsX16 = (long)(penStepsEBB * 16L);
+
+    // Compare regular solution against 16x magnified solution
+    long rotSteps = (long)((rotStepsEBB) * rotScale) + (rotStepError / 16);
+    long penSteps = (long)((penStepsEBB) * penScale) + (penStepError / 16);
+
+    rotStepsX16 = (long)((rotStepsX16 * rotScale) + rotStepError);
+    penStepsX16 = (long)((penStepsX16 * penScale) + penStepError);
+
+    // Compute new error terms
+    rotStepError = rotStepsX16 - (rotSteps * 16L);
+    penStepError = penStepsX16 - (penSteps * 16L);
+
+    rotStepsEBB = rotSteps;
+    penStepsEBB = penSteps;
+
+#endif
+
 		rotMotor.move(rotStepsEBB);
 		rotMotor.setSpeed( abs( (float)rotStepsEBB * (float)1000 / (float)duration ) );
 		penMotor.move(penStepsEBB);
