@@ -26,7 +26,7 @@ void initHardware(){
 	penServo.write(penState);
 }
 
-inline void loadPenPosFromEE() {
+void loadPenPosFromEE() {
 	penUpPos = eeprom_read_word(penUpPosEEAddress);
 	penDownPos = eeprom_read_word(penDownPosEEAddress);
 	servoRateUp = eeprom_read_word(penUpRateEEAddress);
@@ -34,21 +34,33 @@ inline void loadPenPosFromEE() {
 	penState = penUpPos;
 }
 
-inline void storePenUpPosInEE() {
+void storePenUpPosInEE() {
 	eeprom_update_word(penUpPosEEAddress, penUpPos);
 }
 
-inline void storePenDownPosInEE() {
+void storePenDownPosInEE() {
 	eeprom_update_word(penDownPosEEAddress, penDownPos);
 }
 
-inline void sendAck(){
+void sendAck(){
 	Serial.print("OK\r\n");
 }
 
-inline void sendError(){
-	//Serial.print("!8 Err: Unknown command\r\n");
-	Serial.print("Unknown CMD\r\n");
+void sendError(const char *command){
+    Serial.print("!8 Err: Unknown command");
+    if (command != nullptr) {
+        Serial.print(": ");
+        Serial.print(command); // Přidá command na konec zprávy pouze pokud není nullptr
+    }
+    Serial.print("\r\n");
+}
+
+void sendRetry(const char *command){
+    Serial.print("RETRY: ");
+    if (command != nullptr) {
+        Serial.print(command); // Přidá command na konec zprávy pouze pokud není nullptr
+    }
+    Serial.print("\r\n");
 }
 
 void motorsOff() {

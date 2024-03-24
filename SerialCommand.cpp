@@ -42,7 +42,7 @@ SerialCommand::SerialCommand()
  * This is used for matching a found token in the buffer, and gives the pointer
  * to the handler function to deal with it.
  */
-void SerialCommand::addCommand(const char *command, void (*function)()) {
+void SerialCommand::addCommand(const char *command, void (*function)(char *command)) {
   #ifdef SERIALCOMMAND_DEBUG
     Serial.print("Adding command (");
     Serial.print(commandCount);
@@ -103,7 +103,7 @@ void SerialCommand::readSerial() {
             #endif
 
             // Execute the stored handler function for the command
-            (*commandList[i].function)();
+            (*commandList[i].function)(command);
             matched = true;
             break;
           }

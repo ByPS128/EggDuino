@@ -162,6 +162,7 @@ void setup() {
 
 void loop() {
 	moveOneStep();
+  //moveToDestination();
 
 	SCmd.readSerial();
 

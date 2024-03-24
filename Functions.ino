@@ -20,7 +20,7 @@ void makeComInterface(){
 	SCmd.setDefaultHandler(unrecognized); // Handler for command that isn't matched (says "What?")
 }
 
-void queryPen() {
+void queryPen(char *command) {
 	char state;
 	if (penState==penUpPos)
 		state='0';
@@ -30,18 +30,18 @@ void queryPen() {
 	sendAck();
 }
 
-void queryButton() {
+void queryButton(char *command) {
 	Serial.print(String(prgButtonState) +"\r\n");
 	sendAck();
 	prgButtonState = 0;
 }
 
-void queryLayer() {
+void queryLayer(char *command) {
 	Serial.print(String(layer) +"\r\n");
 	sendAck();
 } 
 
-void setLayer() {
+void setLayer(char *command) {
 	uint32_t value=0;
 	char *arg1;
 	arg1 = SCmd.next();
@@ -51,16 +51,19 @@ void setLayer() {
 		sendAck();
 	}
 	else
-		sendError();
+  {
+    String message = "set layer, param is null";
+		sendError(message.c_str());
+  }
 }
 
-void queryNodeCount() {
+void queryNodeCount(char *command) {
 	Serial.print(String(nodeCount) +"\r\n");
 	sendAck();
 
 }
 
-void setNodeCount() {
+void setNodeCount(char *command) {
 	uint32_t value=0;
 	char *arg1;
 	arg1 = SCmd.next();
@@ -70,20 +73,23 @@ void setNodeCount() {
 		sendAck();
 	}
 	else
-		sendError();
+  {
+    String message = "set node count, param is null";
+		sendError(message.c_str());
+  }
 }
 
-void nodeCountIncrement() {
+void nodeCountIncrement(char *command) {
 	nodeCount=nodeCount++;
 	sendAck();	
 }
 
-void nodeCountDecrement() {
+void nodeCountDecrement(char *command) {
 	nodeCount=nodeCount--;
 	sendAck();
 }
 
-void stepperMove() {
+void stepperMove(char *command) {
 	uint16_t duration=0; //in ms
 	int penStepsEBB=0; //Pen
 	int rotStepsEBB=0; //Rot
@@ -91,7 +97,9 @@ void stepperMove() {
 	moveToDestination();
 
 	if (!parseSMArgs(&duration, &penStepsEBB, &rotStepsEBB)) {
-		sendError();
+    String message = "stepper move parse params failed, CMD: ";
+    message += command;
+		sendRetry(message.c_str());
 		return;
 	}
 
@@ -118,7 +126,7 @@ void setPenDown() {
 }
 
 
-void setPen(){
+void setPen(char *command){
 	int cmd;
 	int value;
 	char *arg;
@@ -140,7 +148,9 @@ void setPen(){
 				break;
 
 			default:
-				sendError();
+        String message = "set pen invalid arg: ";
+        message += arg;
+        sendError(message.c_str());
 		}
 	}
 	char *val;
@@ -151,7 +161,7 @@ void setPen(){
 	}
 }  
 
-void togglePen(){
+void togglePen(char *command){
 	int value;
 	char *arg;
 
@@ -176,7 +186,7 @@ void doTogglePen() {
 	}
 }
 
-void enableMotors(){
+void enableMotors(char *command){
 	int cmd;
 	int value;
 	char *arg;
@@ -188,7 +198,7 @@ void enableMotors(){
 	if (val != NULL)
 		value = atoi(val);
 	//values parsed
-	if ((arg != NULL) && (val == NULL)){
+	if ((arg != NULL) /*&& (val == NULL)*/){
 		switch (cmd) {
 			case 0: motorsOff();
 				sendAck();
@@ -197,25 +207,31 @@ void enableMotors(){
 				sendAck();
 				break;
 			default:
-				sendError();
+        String message = "enable motors, invalid value, arg: ";
+        message += arg;
+        message += ", val: ";
+        message += val;
+        message += "CMD:";
+        message += command;
+				sendError(message.c_str());
 		}
 	}
-	//the following implementaion is a little bit cheated, because i did not know, how to implement different values for first and second argument.
-	if ((arg != NULL) && (val != NULL)){
-		switch (value) {
-			case 0: motorsOff();
-				sendAck();
-				break;
-			case 1: motorsOn();
-				sendAck();
-				break;
-			default:
-				sendError();
-		}
-	}
+	// //the following implementaion is a little bit cheated, because i did not know, how to implement different values for first and second argument.
+	// if ((arg != NULL) && (val != NULL)){
+	// 	switch (value) {
+	// 		case 0: motorsOff();
+	// 			sendAck();
+	// 			break;
+	// 		case 1: motorsOn();
+	// 			sendAck();
+	// 			break;
+	// 		default:
+	// 			sendError();
+	// 	}
+	// }
 }
 
-void stepperModeConfigure(){
+void stepperModeConfigure(char *command){
 	int cmd;
 	int value;
 	char *arg;
@@ -251,12 +267,16 @@ void stepperModeConfigure(){
 				sendAck();
 				break;
 			default:
-				 sendError();
+        String message = "stepper mode configure, arg: ";
+        message += arg;
+        message += ", val: ";
+        message += val;
+        sendError(message.c_str());
 		}
 	}
 }
 
-void pinOutput(){
+void pinOutput(char *command){
 	char *arg1;
 	char *arg2;
 	char *arg3;
@@ -266,7 +286,8 @@ void pinOutput(){
 	arg2 = SCmd.next();
 	arg3 = SCmd.next();
 	if (arg1 == NULL || arg2 == NULL || arg3 == NULL) {
-		sendError();
+    String message = "pin output, some of parameters is null value";
+		sendError(message.c_str());
 		return;
 	}
 	//PO,B,3,0 = disable engraver
@@ -279,7 +300,7 @@ void pinOutput(){
 }
 
 //currently inkscape extension is using PO command for engraver instead of SE
-void setEngraver(){
+void setEngraver(char *command){
 	char *arg;
 	int val;
 	arg = SCmd.next();
@@ -290,15 +311,17 @@ void setEngraver(){
 	sendAck();
 }
 
-void sendVersion(){
+void sendVersion(char *command){
 	Serial.print(initSting);
 	Serial.print("\r\n");
 }
 
 void unrecognized(const char *command){
-	sendError();
+  String message = "unrecognized command: ";
+  message += command;
+	sendRetry(message.c_str());
 }
 
-void ignore(){
+void ignore(char *command){
 	sendAck();
 }
